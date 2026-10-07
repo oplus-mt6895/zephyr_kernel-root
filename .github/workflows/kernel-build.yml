@@ -192,11 +192,14 @@ jobs:
 
           **Root:** `${ROOT_IMPL}` · **AK3:** Enabled
 
-**Manager:**
-- KernelSU → https://github.com/tiann/KernelSU/releases/tag/v3.0.0
-- KernelSU-Next → https://t.me/ksunext_ci
-- SukiSU-Ultra → https://t.me/sukisuultra
-- BakaSU → https://github.com/Baka-SU/BakaSU/actions/workflows/build-manager.yml
+          **Root version:** `${KSU_REF}`
+          **Root commit:** `${KSU_COMMIT}`
+
+          **Manager:**
+          - KernelSU → https://github.com/tiann/KernelSU/releases/tag/v3.0.0
+          - KernelSU-Next → https://t.me/ksunext_ci
+          - SukiSU-Ultra → https://t.me/sukisuultra
+          - BakaSU → https://github.com/Baka-SU/BakaSU/actions/workflows/build-manager.yml
 
           EOF
 
