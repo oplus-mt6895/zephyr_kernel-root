@@ -990,7 +990,13 @@ def handle_callback(query):
                     print(f"tracked refresh lookup failed: {exc}", file=sys.stderr)
 
             if run and run.get("status") in {"queued", "in_progress", "waiting", "requested", "pending"}:
-                text = progress_message(run, tracked["root"], tracked["frame"])
+                text = progress_message(
+                    run,
+                    tracked["root"],
+                    tracked["frame"],
+                    requester=tracked.get("requester"),
+                    username=tracked.get("username"),
+                )
                 tracked["frame"] += 1
                 edit_message(chat_id, tracked["message_id"], text, progress_keyboard(run))
                 tracked["last_text"] = text
