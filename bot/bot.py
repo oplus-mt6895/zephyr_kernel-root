@@ -401,19 +401,15 @@ def dispatch_build(root):
 
     result = gh(
         "POST",
-        f"/repos/{REPO}/dispatches",
+        f"/repos/{REPO}/actions/workflows/377098687/dispatches",
         {
-            "event_type": "build-kernel",
-            "client_payload": {
+            "ref": BRANCH,
+            "inputs": {
                 "root": root,
-                "build_ak3": True,
+                "build_ak3": "true",
             },
         },
     )
-
-    run_id = result.get("workflow_run_id")
-    if run_id:
-        return gh("GET", f"/repos/{REPO}/actions/runs/{run_id}"), None
 
     data = gh(
         "GET",
