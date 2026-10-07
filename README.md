@@ -7,6 +7,8 @@ Telegram-controlled kernel builder for **Realme GT Neo 3 (zephyr / MT6895)**.
 - ⚡ GitHub Actions kernel builds
 - 🌱 KernelSU-Next
 - 🛡️ KernelSU
+- 🧬 SukiSU-Ultra
+- 🐻 BakaSU
 - 📦 AnyKernel3 ZIP
 - 📊 Live Telegram build status
 - 🧪 Actions artifact testing before release
@@ -38,7 +40,7 @@ Build flow:
 ```
 🔨 Build Kernel
     ↓
-🌱 Select Root (KernelSU-Next / KernelSU / SukiSU-Ultra / No Root)
+🌱 Select Root (KernelSU-Next / KernelSU / SukiSU-Ultra / BakaSU / No Root)
     ↓
 🚀 Start Build
     ↓

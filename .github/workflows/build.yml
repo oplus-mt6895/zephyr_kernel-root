@@ -1,0 +1,232 @@
+name: Zephyr Kernel Build
+
+run-name: Zephyr Kernel · ${{ inputs.root }} · AK3 ${{ inputs.build_ak3 }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      root:
+        description: Root implementation
+        required: true
+        default: ksu-next
+        type: choice
+        options:
+          - ksu-next
+          - kernel-su
+          - sukisu-ultra
+          - baka-su
+          - none
+      build_ak3:
+        description: Package AnyKernel3 ZIP
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: zephyr-kernel-build
+  cancel-in-progress: false
+
+env:
+  KERNEL_REPO: https://github.com/oplus-mt6895/android_kernel_oplus_mt6895.git
+  KERNEL_BRANCH: lineage-24.0
+  MODULES_REPO: https://github.com/oplus-mt6895/android_kernel_modules_oplus_mt6895.git
+  MODULES_BRANCH: lineage-23.2
+  KERNEL_DIR: kernel-5.10
+  DEFCONFIG: oplus6895_defconfig
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout builder
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git curl ca-certificates python3 python3-pip repo rsync ccache bc bison flex build-essential libssl-dev libelf-dev pahole zip unzip
+
+      - name: Notify build started
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          SHA: ${{ github.sha }}
+          JOB_STATUS: started
+        run: python3 scripts/telegram_notify.py started
+
+      - name: Install repo tool
+        run: |
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o /tmp/repo
+          chmod +x /tmp/repo
+          sudo mv /tmp/repo /usr/local/bin/repo
+
+      - name: Sync Android kernel build manifest
+        run: |
+          rm -rf workspace
+          mkdir -p workspace
+          cd workspace
+          repo init -u https://github.com/oplus-mt6895/zephyr_kernel-root.git -b main -m manifests/zephyr.xml --depth=1
+          repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle --force-sync
+
+      - name: Inspect source tree
+        run: |
+          set -x
+          echo "=== kernel directory ==="
+          ls -la workspace/kernel-5.10
+          echo "=== build config ==="
+          ls -l workspace/kernel-5.10/build.config.oplus6895
+          echo "=== workspace build.config ==="
+          ls -l workspace/build.config
+          echo "=== defconfig directory ==="
+          ls -la workspace/kernel-5.10/arch/arm64/configs | grep -E 'oplus6895|gki_defconfig|mgk_64' || true
+          echo "=== kernel HEAD ==="
+          git -C workspace/kernel-5.10 rev-parse HEAD
+          echo "=== original build config ==="
+          sed -n '1,220p' workspace/build.config
+
+      - name: Prepare Image.gz-only build config
+        working-directory: workspace
+        run: |
+          cp -L build.config build.config.zephyr-original
+          cat > build.config <<'EOF'
+          KERNEL_DIR=kernel-5.10
+          . ${ROOT_DIR}/${KERNEL_DIR}/build.config.common
+          . ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
+          . ${ROOT_DIR}/${KERNEL_DIR}/build.config.lto_thin
+
+          DEFCONFIG=oplus6895_defconfig
+          PRE_DEFCONFIG_CMDS="KCONFIG_CONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gki_defconfig ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/mgk_64_k510_defconfig ${ROOT_DIR}/${KERNEL_DIR}/kernel/configs/oplus6895.config"
+          POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"
+
+          MAKE_GOALS="
+          Image.gz
+          "
+
+          FILES="
+          arch/arm64/boot/Image.gz
+          "
+
+          DTC='${OUT_DIR}/scripts/dtc/dtc'
+
+          IN_KERNEL_MODULES=""
+          EXT_MODULES=""
+          BUILD_INITRAMFS=""
+          EOF
+
+          echo "=== active build.config ==="
+          cat build.config
+
+      - name: Integrate root implementation
+        run: |
+          chmod +x scripts/integrate_root.sh
+          scripts/integrate_root.sh workspace/kernel-5.10 "${{ inputs.root }}"
+
+      - name: Build Image.gz
+        working-directory: workspace
+        run: |
+          export ROOT_DIR="$PWD"
+          export OUT_DIR="$ROOT_DIR/out"
+          export BUILD_CONFIG="build.config"
+          export SKIP_ABI_CHECKS=1
+          ulimit -n 65535
+          bash build/build.sh
+
+      - name: Verify Image.gz
+        working-directory: workspace
+        run: |
+          test -s out/kernel-5.10/arch/arm64/boot/Image.gz
+          echo "Image.gz built successfully:"
+          ls -lh out/kernel-5.10/arch/arm64/boot/Image.gz
+
+      - name: Package AnyKernel3
+        if: ${{ inputs.build_ak3 != false }}
+        run: |
+          chmod +x scripts/package_ak3.sh
+          scripts/package_ak3.sh workspace/kernel-5.10 workspace/out "${{ inputs.root }}"
+
+      - name: Prepare release metadata
+        if: ${{ success() && inputs.build_ak3 != false }}
+        working-directory: workspace
+        env:
+          ROOT_IMPL: ${{ inputs.root }}
+        run: |
+          mkdir -p ../release
+          IMAGE="out/kernel-5.10/arch/arm64/boot/Image.gz"
+          ZIP="$(find ../artifacts -maxdepth 1 -type f -name "*.zip" -print -quit)"
+          test -n "$ZIP" -a -f "$ZIP"
+          ZIP_SIZE="$(du -h "$ZIP" | awk "{print \$1}")"
+          if [ "$ROOT_IMPL" = "kernel-su" ]; then
+            KSU_COMMIT="$(git -C kernel-5.10/KernelSU rev-parse HEAD 2>/dev/null || echo none)"
+            KSU_REF="$(git -C kernel-5.10/KernelSU describe --tags --always 2>/dev/null || echo unknown)"
+          elif [ "$ROOT_IMPL" = "ksu-next" ]; then
+            KSU_COMMIT="$(git -C kernel-5.10/KernelSU-Next rev-parse HEAD 2>/dev/null || echo none)"
+            KSU_REF="$(git -C kernel-5.10/KernelSU-Next describe --tags --always 2>/dev/null || echo unknown)"
+          elif [ "$ROOT_IMPL" = "sukisu-ultra" ]; then
+            KSU_COMMIT="$(git -C kernel-5.10/SukiSU-Ultra rev-parse HEAD 2>/dev/null || echo none)"
+            KSU_REF="$(git -C kernel-5.10/SukiSU-Ultra describe --tags --always 2>/dev/null || echo main)"
+          elif [ "$ROOT_IMPL" = "baka-su" ]; then
+            KSU_COMMIT="$(git -C kernel-5.10/BakaSU rev-parse HEAD 2>/dev/null || echo none)"
+            KSU_REF="$(git -C kernel-5.10/BakaSU describe --tags --always 2>/dev/null || echo main)"
+          else
+            KSU_COMMIT="none"
+            KSU_REF="none"
+          fi
+          BUILD_TS="$(date -u +%Y%m%d-%H%M%S)"
+          TAG="zephyr-run${GITHUB_RUN_NUMBER}"
+          RELEASE_TITLE="Zephyr Kernel ${BUILD_TS} — ${ROOT_IMPL}"
+          printf "%s\n" "$TAG" > ../release/TAG
+          printf "%s\n" "$RELEASE_TITLE" > ../release/TITLE
+          printf "%s\n" "$(basename "$ZIP")" > ../release/ZIP_NAME
+          printf "%s\n" "$ZIP_SIZE" > ../release/ZIP_SIZE
+          cat > ../release/RELEASE.md <<EOF
+          ## ⚡ Zephyr Kernel — Realme GT Neo 3
+
+          GT Neo 3 (zephyr) · MT6895 · Linux 5.10
+
+          **Root:** `${ROOT_IMPL}` · **AK3:** Enabled
+
+**Manager:**
+- KernelSU → https://github.com/tiann/KernelSU/releases/tag/v3.0.0
+- KernelSU-Next → https://t.me/ksunext_ci
+- SukiSU-Ultra → https://t.me/sukisuultra
+- BakaSU → https://github.com/Baka-SU/BakaSU/actions/workflows/build-manager.yml
+
+          EOF
+
+
+      - name: Upload kernel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zephyr-kernel-${{ github.run_number }}
+          path: |
+            artifacts/*.zip
+            artifacts/Image.gz
+            artifacts/BUILD_NAME
+            artifacts/BUILD_TIME_UTC
+            release/TAG
+            release/TITLE
+            release/ZIP_NAME
+            release/ZIP_SIZE
+            release/RELEASE.md
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Notify Telegram
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          SHA: ${{ github.sha }}
+          JOB_STATUS: ${{ job.status }}
+          ROOT_IMPL: ${{ inputs.root }}
+        run: python3 scripts/telegram_notify.py "${JOB_STATUS}"

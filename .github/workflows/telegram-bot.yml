@@ -1,0 +1,33 @@
+name: Zephyr Telegram Bot
+
+on:
+  schedule:
+    # GitHub's shortest supported schedule interval is 5 minutes.
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: zephyr-telegram-bot
+  cancel-in-progress: false
+
+jobs:
+  telegram-worker:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout bot
+        uses: actions/checkout@v4
+
+      - name: Run Telegram worker
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_WORKFLOW: build.yml
+          GITHUB_REF: main
+        run: python3 bot/bot.py
