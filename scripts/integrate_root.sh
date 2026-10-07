@@ -55,7 +55,7 @@ fi
 
 echo "==> Installing $ROOT_IMPL"
 if [ "$ROOT_IMPL" = "sukisu-ultra" ]; then
-  bash "$KSU_DIR/kernel/setup.sh" main
+  bash "$KSU_DIR/kernel/setup.sh" "$MANAGER_REF" main
 else
   bash "$KSU_DIR/kernel/setup.sh"
 fi
