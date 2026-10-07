@@ -43,6 +43,16 @@ def main() -> int:
     owner_repo = os.environ.get("GITHUB_REPOSITORY", "almightygodthor/zephyr-kernel-builder")
     actions_url = f"https://github.com/{owner_repo}/actions/runs/{run_id}"
     root = os.environ.get("ROOT_IMPL", "ksu-next")
+    # Artifacts store human-readable ROOT labels, while workflow inputs use internal keys.
+    root = {
+        "BakaSU": "baka-su",
+        "KernelSU-Next": "ksu-next",
+        "KSU-Next": "ksu-next",
+        "KernelSU": "kernel-su",
+        "SukiSU-Ultra": "sukisu-ultra",
+        "NoRoot": "none",
+        "No Root": "none",
+    }.get(root, root)
     root_label = {"ksu-next": "KernelSU-Next", "kernel-su": "KernelSU", "sukisu-ultra": "SukiSU-Ultra", "baka-su": "BakaSU"}.get(root, "No Root")
     root_releases = {
         "ksu-next": "https://t.me/ksunext_ci",
