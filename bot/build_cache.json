@@ -1,5 +1,13 @@
 {
-  "baka-su": {},
+  "baka-su": {
+    "manager_key": "baka-su:v4.2.0-rc3",
+    "manager_ref": "v4.2.0-rc3",
+    "release_url": "",
+    "requester_id": "7577854738",
+    "requester_name": "\u0372\u2c8f\u03cc\ud835\udd97 \u2670\ud835\ude91\u016b\ud835\udd5f\u2202\u01dd\ud835\udd97\u210a\u043e\u2202 \u26a1\ufe0f",
+    "run_id": 37610232720,
+    "run_number": 16
+  },
   "kernel-su": {},
   "ksu-next": {
     "manager_key": "ksu-next:v3.4.0",
