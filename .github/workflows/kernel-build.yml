@@ -265,10 +265,53 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add bot/build_cache.json
-          if ! git diff --cached --quiet; then
-            git commit -m "ci: update root manager build cache [skip ci]"
-            git push
+          if git diff --cached --quiet; then
+            exit 0
           fi
+
+          git commit -m "ci: update root manager build cache [skip ci]"
+
+          # The Telegram worker can commit to main while this long kernel build
+          # is running. Rebase onto the latest main before pushing so the cache
+          # update does not fail with a non-fast-forward race.
+          for attempt in 1 2 3; do
+            git fetch origin main
+            if git rebase origin/main; then
+              if git push origin HEAD:main; then
+                exit 0
+              fi
+            else
+              git rebase --abort || true
+              git reset --hard origin/main
+              python3 - <<'PY'
+          import json, os
+          path = "bot/build_cache.json"
+          try:
+              with open(path, "r", encoding="utf-8") as f:
+                  data = json.load(f)
+          except (FileNotFoundError, json.JSONDecodeError):
+              data = {}
+          data[os.environ["ROOT_IMPL"]] = {
+              "manager_key": os.environ["MANAGER_KEY"],
+              "manager_ref": os.environ["MANAGER_REF"],
+              "run_id": int(os.environ["RUN_ID"]),
+              "run_number": int(os.environ["RUN_NUMBER"]),
+              "requester_id": os.environ["REQUESTER_ID"],
+              "requester_name": os.environ["REQUESTER_NAME"],
+              "release_url": ""
+          }
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(data, f, indent=2, sort_keys=True)
+              f.write("\\n")
+          PY
+              git add bot/build_cache.json
+              git commit -m "ci: update root manager build cache [skip ci]"
+            fi
+            sleep 2
+          done
+
+          echo "Failed to push root-manager build cache after 3 attempts." >&2
+          exit 1
 
       - name: Upload kernel artifacts
         uses: actions/upload-artifact@v4
