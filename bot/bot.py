@@ -22,6 +22,8 @@ DELETE_OWNER_ID = 7577854738
 
 # Keep comfortably below GitHub's 6-hour GitHub-hosted job limit.
 WORKER_SECONDS = 60 * 60
+MANAGER_REPOS = {"kernel-su": "tiann/KernelSU", "ksu-next": "KernelSU-Next/KernelSU-Next", "sukisu-ultra": "SukiSU-Ultra/SukiSU-Ultra", "baka-su": "Baka-SU/BakaSU"}
+BUILD_CACHE_PATH = "bot/build_cache.json"
 POLL_TIMEOUT = 2
 MONITOR_INTERVAL = 0.5
 GH_PROGRESS_INTERVAL = 1
@@ -263,6 +265,87 @@ def shutdown_zephyr():
 
     STOP_REQUESTED = True
     return results
+
+
+def manager_info(root):
+    """Resolve the current manager release/tag used for deduplication."""
+    if root == "none":
+        return {"repo": None, "ref": "none", "key": "none"}
+    repo = MANAGER_REPOS[root]
+    try:
+        release = gh("GET", "/repos/" + repo + "/releases/latest")
+        tag = release.get("tag_name")
+        if tag:
+            return {"repo": repo, "ref": tag, "key": root + ":" + tag}
+    except Exception as exc:
+        print("latest release lookup failed for " + root + ": " + str(exc), file=sys.stderr)
+    try:
+        tags = gh("GET", "/repos/" + repo + "/tags?per_page=1")
+        tag = (tags or [{}])[0].get("name")
+        if tag:
+            return {"repo": repo, "ref": tag, "key": root + ":" + tag}
+    except Exception as exc:
+        print("latest tag lookup failed for " + root + ": " + str(exc), file=sys.stderr)
+    return {"repo": repo, "ref": "main", "key": root + ":main"}
+
+
+def build_cache():
+    try:
+        data = gh("GET", "/repos/" + REPO + "/contents/" + BUILD_CACHE_PATH + "?ref=" + urllib.parse.quote(BRANCH, safe=""))
+        import base64
+        raw = data.get("content", "")
+        return json.loads(base64.b64decode(raw).decode()) if raw else {}
+    except Exception as exc:
+        print("build cache lookup failed: " + str(exc), file=sys.stderr)
+        return {}
+
+
+def cached_build(root, manager_key):
+    entry = build_cache().get(root)
+    if not entry or entry.get("manager_key") != manager_key:
+        return None
+    run_id = entry.get("run_id")
+    if not run_id:
+        return None
+    try:
+        run = get_run(run_id)
+        if run.get("status") == "completed" and run.get("conclusion") == "success":
+            return entry, run
+    except Exception as exc:
+        print("cached build lookup failed: " + str(exc), file=sys.stderr)
+    return None
+
+
+def requester_name(user):
+    first = (user.get("first_name") or "").strip()
+    last = (user.get("last_name") or "").strip()
+    username = (user.get("username") or "").strip()
+    display = " ".join(x for x in (first, last) if x).strip() or username or str(user.get("id", "unknown"))
+    return display, username
+
+
+def cached_build_keyboard(run, entry):
+    rows = []
+    if entry.get("release_url"):
+        rows.append([{"text": "📦 GitHub Release ↗", "url": entry["release_url"]}])
+    if run.get("html_url"):
+        rows.append([{"text": "🧪 Actions / Artifacts ↗", "url": run["html_url"]}])
+    rows.append([{"text": "🔄 Refresh", "callback_data": "status"}])
+    return rows
+
+
+def cached_build_message(root, info, entry, run, requester):
+    root_label = {"ksu-next": "KSU-Next", "kernel-su": "KernelSU", "sukisu-ultra": "SukiSU-Ultra", "baka-su": "BakaSU", "none": "No Root"}.get(root, root)
+    original = entry.get("requester_name", "previous user")
+    return (
+        "<b>♻️ EXISTING BUILD REUSED</b>\n\n"
+        f"🌱 <b>{esc(root_label)}</b> · <code>{esc(info['ref'])}</code>\n"
+        f"🆔 Run <code>#{esc(run.get('run_number', '?'))}</code>\n"
+        f"👤 Original request · <b>{esc(original)}</b>\n"
+        f"👤 Your request · <b>{esc(requester)}</b>\n\n"
+        "✅ Same root-manager release is already built.\n"
+        "🚫 No duplicate GitHub Actions build was started."
+    )
 
 
 def menu_text():
