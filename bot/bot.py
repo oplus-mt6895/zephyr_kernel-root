@@ -401,14 +401,13 @@ def dispatch_build(root):
 
     result = gh(
         "POST",
-        f"/repos/{REPO}/actions/workflows/{urllib.parse.quote(BUILD_WORKFLOW, safe='')}/dispatches",
+        f"/repos/{REPO}/dispatches",
         {
-            "ref": BRANCH,
-            "inputs": {
+            "event_type": "build-kernel",
+            "client_payload": {
                 "root": root,
-                "build_ak3": "true",
+                "build_ak3": True,
             },
-            "return_run_details": True,
         },
     )
 
