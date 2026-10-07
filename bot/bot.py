@@ -752,17 +752,13 @@ def handle_message(message):
         for run in successful_build_runs():
             if not release_for_run(run.get("run_number")):
                 runs.append(run)
-        target_id = None
         if runs:
             text = "<b>📦 PUBLISH A BUILD</b>\n\nChoose a successful build to publish:"
             kb = release_list_keyboard(runs)
         else:
             text = "🟢 <b>No unpublished successful builds found.</b>"
             kb = menu_keyboard(user_id)
-        if target_id:
-            edit_message(chat_id, target_id, text, kb)
-        else:
-            send_fresh(chat_id, text, kb)
+        send_fresh(chat_id, text, kb)
     elif command == "/status":
         tracked = TRACKED_RUNS.get(chat_id)
         run = None
@@ -779,29 +775,14 @@ def handle_message(message):
             tracked["last_text"] = text
         else:
             run = active_run()
-            target_id = None
             if run:
                 root = run_config(run)
-                if target_id:
-                    text = progress_message(run, root, 0)
-                    if tracked:
-                        tracked["root"] = root
-                        send_fresh(chat_id, text + "\n\n🟢 <b>IM ALIVE</b> · Bob is on duty.", progress_keyboard(run))
-                        target_id = tracked["message_id"]
-                    else:
-                        try:
-                            edit_message(chat_id, target_id, text, progress_keyboard(run))
-                        except APIError:
-                            msg = send_fresh(chat_id, text, progress_keyboard(run))
-                            target_id = msg["message_id"]
-                    track_build(chat_id, target_id, run, root)
-                else:
-                    msg = send_fresh(
-                        chat_id,
-                        progress_message(run, root, 0),
-                        progress_keyboard(run),
-                    )
-                    track_build(chat_id, msg["message_id"], run, root)
+                msg = send_fresh(
+                    chat_id,
+                    progress_message(run, root, 0) + "\n\n🟢 <b>IM ALIVE</b> · Bob is on duty.",
+                    progress_keyboard(run),
+                )
+                track_build(chat_id, msg["message_id"], run, root)
             else:
                 send_fresh(
                     chat_id,
