@@ -21,6 +21,7 @@ on:
         required: true
         default: true
         type: boolean
+
 permissions:
   contents: write
   actions: write
@@ -190,10 +191,10 @@ jobs:
 
           GT Neo 3 (zephyr) · MT6895 · Linux 5.10
 
-          **Root:** `${ROOT_IMPL}` · **AK3:** Enabled
+          **Root:** ${ROOT_IMPL} · **AK3:** Enabled
 
-          **Root version:** `${KSU_REF}`
-          **Root commit:** `${KSU_COMMIT}`
+          **Root version:** ${KSU_REF}
+          **Root commit:** ${KSU_COMMIT}
 
           **Manager:**
           - KernelSU → https://github.com/tiann/KernelSU/releases/tag/v3.0.0
@@ -202,7 +203,6 @@ jobs:
           - BakaSU → https://github.com/Baka-SU/BakaSU/actions/workflows/build-manager.yml
 
           EOF
-
 
       - name: Upload kernel artifacts
         uses: actions/upload-artifact@v4
