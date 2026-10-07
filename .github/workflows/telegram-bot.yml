@@ -28,6 +28,6 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_WORKFLOW: build.yml
+          GITHUB_WORKFLOW: kernel-build.yml
           GITHUB_REF: main
         run: python3 bot/bot.py
