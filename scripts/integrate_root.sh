@@ -3,12 +3,18 @@ set -euo pipefail
 
 KERNEL_DIR="${1:?kernel source directory required}"
 ROOT_IMPL="${2:-none}"
+MANAGER_REF="${3:-}"
 
 cd "$KERNEL_DIR"
 
 if [ "$ROOT_IMPL" = "none" ]; then
   echo "==> Root integration disabled"
   exit 0
+fi
+
+if [ -z "$MANAGER_REF" ]; then
+  echo "Manager release/tag is required for root integration"
+  exit 1
 fi
 
 case "$ROOT_IMPL" in
@@ -24,7 +30,7 @@ if [ "$ROOT_IMPL" = "ksu-next" ]; then
   KSU_REPO="https://github.com/KernelSU-Next/KernelSU-Next.git"
   KSU_DIR="KernelSU-Next"
   echo "==> Cloning KernelSU-Next"
-  git clone --depth=1 "$KSU_REPO" "$KSU_DIR"
+  git clone --depth=1 --branch "$MANAGER_REF" "$KSU_REPO" "$KSU_DIR"
 elif [ "$ROOT_IMPL" = "kernel-su" ]; then
   KSU_REPO="https://github.com/tiann/KernelSU.git"
   KSU_DIR="KernelSU"
@@ -34,7 +40,7 @@ elif [ "$ROOT_IMPL" = "sukisu-ultra" ]; then
   KSU_REPO="https://github.com/SukiSU-Ultra/SukiSU-Ultra.git"
   KSU_DIR="SukiSU-Ultra"
   echo "==> Cloning SukiSU-Ultra"
-  git clone --depth=1 --branch main "$KSU_REPO" "$KSU_DIR"
+  git clone --depth=1 --branch "$MANAGER_REF" "$KSU_REPO" "$KSU_DIR"
 else
   KSU_REPO="https://github.com/Baka-SU/BakaSU.git"
   KSU_DIR="BakaSU"
