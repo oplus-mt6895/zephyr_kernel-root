@@ -1,7 +1,15 @@
 {
-  "ksu-next": {},
-  "kernel-su": {},
-  "sukisu-ultra": {},
   "baka-su": {},
-  "none": {}
+  "kernel-su": {},
+  "ksu-next": {
+    "manager_key": "ksu-next:v3.4.0",
+    "manager_ref": "v3.4.0",
+    "release_url": "",
+    "requester_id": "7577854738",
+    "requester_name": "\u0372\u2c8f\u03cc\ud835\udd97 \u2670\ud835\ude91\u016b\ud835\udd5f\u2202\u01dd\ud835\udd97\u210a\u043e\u2202 \u26a1\ufe0f",
+    "run_id": 37598894562,
+    "run_number": 13
+  },
+  "none": {},
+  "sukisu-ultra": {}
 }
