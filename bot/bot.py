@@ -401,7 +401,7 @@ def dispatch_build(root):
 
     result = gh(
         "POST",
-        f"/repos/{REPO}/actions/workflows/377098687/dispatches",
+        f"/repos/{REPO}/actions/workflows/377120933/dispatches",
         {
             "ref": BRANCH,
             "inputs": {
