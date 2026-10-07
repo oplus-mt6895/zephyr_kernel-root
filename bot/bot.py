@@ -472,7 +472,7 @@ def dispatch_release(run_id, run_number):
     )
 
 
-def dispatch_build(root):
+def dispatch_build(root, manager_ref, manager_key, requester_id, requester_name):
     active = active_run()
     if active:
         return None, active
@@ -490,6 +490,10 @@ def dispatch_build(root):
             "inputs": {
                 "root": root,
                 "build_ak3": "true",
+                "manager_ref": manager_ref,
+                "manager_key": manager_key,
+                "requester_id": str(requester_id),
+                "requester_name": requester_name,
             },
             "return_run_details": True,
         },
@@ -645,9 +649,10 @@ def progress_keyboard(run):
     return rows
 
 
-def track_build(chat_id, message_id, run, root):
+def track_build(chat_id, message_id, run, root, requester=None):
     TRACKED_RUNS[chat_id] = {
         "run_id": run["id"],
+        "requester": requester,
         "message_id": message_id,
         "root": root,
         "frame": 0,
@@ -712,8 +717,6 @@ def handle_message(message):
             menu_keyboard(user_id),
         )
     elif command == "/release":
-        if not require_admin(chat_id, user_id):
-            return
         runs = []
         for run in successful_build_runs():
             if not release_for_run(run.get("run_number")):
@@ -786,10 +789,6 @@ def handle_callback(query):
 
     answer_callback(query_id, "Processing…")
 
-    if not is_admin(chat_id, user_id):
-        edit_message(chat_id, message_id, "⛔ <b>Admin only.</b>")
-        return
-
     if data == "stopbot":
         if not is_owner(user_id):
             answer_callback(query_id, "Only the bot owner can stop Zephyr.", True)
@@ -798,6 +797,9 @@ def handle_callback(query):
         return
 
     if data == "stopback":
+        if not is_owner(user_id):
+            answer_callback(query_id, "Only the bot owner can use this control.", True)
+            return
         edit_message(chat_id, message_id, menu_text(), menu_keyboard(user_id))
         return
 
@@ -849,9 +851,22 @@ def handle_callback(query):
             if root not in {"ksu-next", "kernel-su", "sukisu-ultra", "baka-su", "none"}:
                 raise APIError("invalid build selection")
 
-            run, existing = dispatch_build(root)
+            info = manager_info(root)
+            requester, username = requester_name(query.get("from") or {})
+            cached = cached_build(root, info["key"])
+            if cached:
+                entry, cached_run = cached
+                edit_message(
+                    chat_id,
+                    message_id,
+                    cached_build_message(root, info, entry, cached_run, requester),
+                    cached_build_keyboard(cached_run, entry),
+                )
+                return
+
+            run, existing = dispatch_build(root, info["ref"], info["key"], user_id, requester)
             if existing:
-                edit_message(chat_id, message_id, f"⚠️ <b>Build already running</b> · #{esc(existing.get('run_number', '?'))}", status_keyboard(existing))
+                edit_message(chat_id, message_id, f"⚠️ <b>Same build already running</b> · #{esc(existing.get('run_number', '?'))}\n\nNo duplicate build was started.", status_keyboard(existing))
                 return
 
             if not run:
@@ -870,11 +885,13 @@ def handle_callback(query):
                     "📱 GT Neo 3 · zephyr\n"
                     "🧩 Linux 5.10 · MT6895\n"
                     f"🌱 {root_label} · 📦 AK3\n"
+                    f"🏷️ Manager <code>{esc(info['ref'])}</code>\n"
+                    f"👤 Requested by <b>{esc(requester)}</b>\n"
                     f"🆔 Run <code>#{esc(run.get('run_number', '?'))}</code>"
                 ),
                 rows,
             )
-            track_build(chat_id, message_id, run, root)
+            track_build(chat_id, message_id, run, root, requester)
             return
 
         if data == "status":
