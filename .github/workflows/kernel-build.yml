@@ -213,6 +213,8 @@ jobs:
             artifacts/Image.gz
             artifacts/BUILD_NAME
             artifacts/BUILD_TIME_UTC
+            artifacts/ROOT
+            artifacts/MANAGER
             release/TAG
             release/TITLE
             release/ZIP_NAME
