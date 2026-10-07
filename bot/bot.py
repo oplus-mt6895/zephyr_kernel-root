@@ -24,6 +24,7 @@ DELETE_OWNER_ID = 7577854738
 WORKER_SECONDS = 60 * 60
 MANAGER_REPOS = {"kernel-su": "tiann/KernelSU", "ksu-next": "KernelSU-Next/KernelSU-Next", "sukisu-ultra": "SukiSU-Ultra/SukiSU-Ultra", "baka-su": "Baka-SU/BakaSU"}
 BUILD_CACHE_PATH = "bot/build_cache.json"
+AUTHORIZED_CHATS_PATH = "bot/authorized_chats.json"
 POLL_TIMEOUT = 2
 MONITOR_INTERVAL = 0.5
 GH_PROGRESS_INTERVAL = 1
@@ -153,6 +154,44 @@ def refresh_screen(chat_id, text, keyboard=None):
             print(f"refresh edit failed for chat {chat_id}: {exc}", file=sys.stderr)
             LAST_BOT_MESSAGES.pop(chat_id, None)
     return send_fresh(chat_id, text, keyboard)
+def authorized_chats():
+    try:
+        data = gh("GET", "/repos/" + REPO + "/contents/" + AUTHORIZED_CHATS_PATH + "?ref=" + urllib.parse.quote(BRANCH, safe=""))
+        import base64
+        raw = data.get("content", "")
+        return set(str(x) for x in (json.loads(base64.b64decode(raw).decode()) if raw else []))
+    except Exception as exc:
+        print("authorized chat lookup failed: " + str(exc), file=sys.stderr)
+        return set()
+
+
+def set_chat_authorized(chat_id, authorized):
+    import base64
+    path = "/repos/" + REPO + "/contents/" + AUTHORIZED_CHATS_PATH
+    current = authorized_chats()
+    key = str(chat_id)
+    if authorized:
+        current.add(key)
+    else:
+        current.discard(key)
+    content = json.dumps(sorted(current), indent=2) + "\n"
+    encoded = base64.b64encode(content.encode()).decode()
+    try:
+        existing = gh("GET", path + "?ref=" + urllib.parse.quote(BRANCH, safe=""))
+        sha = existing.get("sha")
+    except Exception:
+        sha = None
+    payload = {"message": ("bot: authorize chat" if authorized else "bot: deauthorize chat"), "content": encoded, "branch": BRANCH}
+    if sha:
+        payload["sha"] = sha
+    gh("PUT", path, payload)
+    return current
+
+
+def chat_is_authorized(chat_id):
+    return str(chat_id) in authorized_chats()
+
+
 def bot_username():
     global BOT_USERNAME
     if BOT_USERNAME:
@@ -731,13 +770,27 @@ def handle_message(message):
     chat_id = chat.get("id")
     user_id = user.get("id")
     text = (message.get("text") or "").strip()
-    if is_bot_mentioned(message):
+    if is_bot_mentioned(message) and (is_owner(user_id) or chat_is_authorized(chat_id)):
         send_fresh(chat_id, "<b>🔨 BOB THE BUILDER MODE</b>\n\n🎵 Can we build it? <b>YES WE CAN!</b>\n⚙️ Can we stop duplicate builds? <b>YES WE CAN!</b>\n🧱 Can we survive another kernel compile? <b>...probably.</b> 😂\n\n<i>Bob says: \"I build kernels, not excuses.\"</i>\n\n🟢 <b>IM ALIVE</b> · Bob is on duty.", menu_keyboard(user_id))
         return
     if not text.startswith("/"):
         return
 
     command = text.split()[0].split("@")[0].lower()
+    if command == "/authorise":
+        if not is_owner(user_id):
+            return
+        set_chat_authorized(chat_id, True)
+        send_fresh(chat_id, "<b>✅ CHAT AUTHORISED</b>\\n\\nThis chat is now allowed to use Zephyr Bot.\\n\\n🟢 <b>IM ALIVE</b> · Bob is on duty.")
+        return
+    if command == "/deauthorise":
+        if not is_owner(user_id):
+            return
+        set_chat_authorized(chat_id, False)
+        send_fresh(chat_id, "<b>🔒 CHAT DEAUTHORISED</b>\\n\\nZephyr Bot will ignore normal commands in this chat until you use /authorise again.")
+        return
+    if not chat_is_authorized(chat_id):
+        return
     if command in {"/start", "/kernel"}:
         send_fresh(chat_id, menu_text(), menu_keyboard(user_id))
     elif command == "/id":
