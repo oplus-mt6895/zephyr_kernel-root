@@ -40,8 +40,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    env:
-      ROOT_IMPL: ${{ inputs.root || github.event.client_payload.root || 'ksu-next' }}
     timeout-minutes: 180
 
     steps:
@@ -128,7 +126,7 @@ jobs:
       - name: Integrate root implementation
         run: |
           chmod +x scripts/integrate_root.sh
-          scripts/integrate_root.sh workspace/kernel-5.10 "${{ env.ROOT_IMPL }}"
+          scripts/integrate_root.sh workspace/kernel-5.10 "${{ inputs.root }}"
 
       - name: Build Image.gz
         working-directory: workspace
@@ -151,13 +149,13 @@ jobs:
         if: ${{ inputs.build_ak3 != false }}
         run: |
           chmod +x scripts/package_ak3.sh
-          scripts/package_ak3.sh workspace/kernel-5.10 workspace/out "${{ env.ROOT_IMPL }}"
+          scripts/package_ak3.sh workspace/kernel-5.10 workspace/out "${{ inputs.root }}"
 
       - name: Prepare release metadata
         if: ${{ success() && inputs.build_ak3 != false }}
         working-directory: workspace
         env:
-          ROOT_IMPL: ${{ env.ROOT_IMPL }}
+          ROOT_IMPL: ${{ inputs.root }}
         run: |
           mkdir -p ../release
           IMAGE="out/kernel-5.10/arch/arm64/boot/Image.gz"
@@ -229,5 +227,5 @@ jobs:
           RUN_NUMBER: ${{ github.run_number }}
           SHA: ${{ github.sha }}
           JOB_STATUS: ${{ job.status }}
-          ROOT_IMPL: ${{ env.ROOT_IMPL }}
+          ROOT_IMPL: ${{ inputs.root }}
         run: python3 scripts/telegram_notify.py "${JOB_STATUS}"
