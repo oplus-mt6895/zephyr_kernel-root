@@ -43,13 +43,15 @@ jobs:
           TITLE="$(find artifact -type f -name TITLE -print -quit)"
           ZIP_NAME="$(find artifact -type f -name ZIP_NAME -print -quit)"
           RELEASE_MD="$(find artifact -type f -name RELEASE.md -print -quit)"
+          ROOT="$(find artifact -type f -name ROOT -print -quit)"
           ZIP="$(find artifact -type f -name '*.zip' -print -quit)"
-          test -n "$TAG" -a -n "$TITLE" -a -n "$ZIP_NAME" -a -n "$RELEASE_MD" -a -n "$ZIP"
+          test -n "$TAG" -a -n "$TITLE" -a -n "$ZIP_NAME" -a -n "$RELEASE_MD" -a -n "$ROOT" -a -n "$ZIP"
           echo "tag=$(cat "$TAG")" >> "$GITHUB_OUTPUT"
           echo "title=$(cat "$TITLE")" >> "$GITHUB_OUTPUT"
           echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
           echo "zip_name=$(cat "$ZIP_NAME")" >> "$GITHUB_OUTPUT"
           echo "release_md=$RELEASE_MD" >> "$GITHUB_OUTPUT"
+          echo "root=$(cat "$ROOT")" >> "$GITHUB_OUTPUT"
 
       - name: Resolve build commit
         id: run
@@ -93,6 +95,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           RUN_ID: ${{ inputs.run_id }}
           RUN_NUMBER: ${{ inputs.run_number }}
+          ROOT_IMPL: ${{ steps.meta.outputs.root }}
           RELEASE_URL: ${{ env.RELEASE_URL }}
           DOWNLOAD_URL: ${{ env.DOWNLOAD_URL }}
         run: |
@@ -106,5 +109,6 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           RUN_ID: ${{ inputs.run_id }}
           RUN_NUMBER: ${{ inputs.run_number }}
+          ROOT_IMPL: ${{ steps.meta.outputs.root }}
         run: |
           python3 scripts/telegram_notify.py failure
