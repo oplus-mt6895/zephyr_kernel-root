@@ -663,7 +663,7 @@ def elapsed_text(run):
     return f"{seconds // 3600:02d}:{(seconds % 3600) // 60:02d}:{seconds % 60:02d}"
 
 
-def progress_message(run, root, frame, cached_stage=None, cached_pct=None):
+def progress_message(run, root, frame, cached_stage=None, cached_pct=None, requester=None, username=None):
     if cached_stage is not None and cached_pct is not None:
         stage, pct = cached_stage, cached_pct
     else:
@@ -679,12 +679,20 @@ def progress_message(run, root, frame, cached_stage=None, cached_pct=None):
     spin = SPINNER[frame % len(SPINNER)]
     root_label = {"ksu-next": "KSU-Next", "kernel-su": "KernelSU", "sukisu-ultra": "SukiSU-Ultra", "baka-su": "BakaSU"}.get(root, "No Root")
 
+    started_by = ""
+    if requester:
+        started_by = f"👤 Started by <b>{esc(requester)}</b>"
+        if username:
+            started_by += f" · <code>@{esc(username.lstrip('@'))}</code>"
+        started_by += "\n"
+
     return (
         f"<b>⚡ KERNEL · BUILDING {spin}</b>\n\n"
         "📱 GT Neo 3 · zephyr\n"
         "🧩 Linux 5.10 · MT6895\n"
         f"🌱 {root_label}\n"
-        "📦 <b>AnyKernel3</b>\n\n"
+        "📦 <b>AnyKernel3</b>\n"
+        f"{started_by}\n"
         f"{spin} <b>{esc(stage)}</b>\n"
         f"<code>[{bar}] {pct}%</code>\n"
         f"⏱ {elapsed_text(run)} · 🆔 #{esc(run.get('run_number', '?'))}"
@@ -716,10 +724,11 @@ def progress_keyboard(run):
     return rows
 
 
-def track_build(chat_id, message_id, run, root, requester=None):
+def track_build(chat_id, message_id, run, root, requester=None, username=None):
     TRACKED_RUNS[chat_id] = {
         "run_id": run["id"],
         "requester": requester,
+        "username": username,
         "message_id": message_id,
         "root": root,
         "frame": 0,
@@ -753,6 +762,8 @@ def monitor_builds():
                     item["frame"],
                     item.get("stage", "Starting runner…"),
                     item.get("pct", 0),
+                    item.get("requester"),
+                    item.get("username"),
                 )
                 item["frame"] += 1
                 if text != item["last_text"]:
@@ -822,7 +833,13 @@ def handle_message(message):
                 print(f"tracked run lookup failed: {exc}", file=sys.stderr)
 
         if run and run.get("status") in {"queued", "in_progress", "waiting", "requested", "pending"}:
-            text = progress_message(run, tracked["root"], tracked["frame"])
+            text = progress_message(
+                run,
+                tracked["root"],
+                tracked["frame"],
+                requester=tracked.get("requester"),
+                username=tracked.get("username"),
+            )
             tracked["frame"] += 1
             send_fresh(chat_id, text + "\n\n🟢 <b>IM ALIVE</b> · Bob is on duty.", progress_keyboard(run))
             tracked["last_text"] = text
@@ -943,6 +960,10 @@ def handle_callback(query):
             if run.get("html_url"):
                 rows.append([{"text": "🔗 GitHub Actions ↗", "url": run["html_url"]}])
 
+            requester_line = f"👤 Requested by <b>{esc(requester)}</b>"
+            if username:
+                requester_line += f" · <code>@{esc(username.lstrip('@'))}</code>"
+
             edit_message(
                 chat_id, message_id,
                 (
@@ -951,12 +972,12 @@ def handle_callback(query):
                     "🧩 Linux 5.10 · MT6895\n"
                     f"🌱 {root_label} · 📦 AK3\n"
                     f"🏷️ Manager <code>{esc(info['ref'])}</code>\n"
-                    f"👤 Requested by <b>{esc(requester)}</b>\n"
+                    f"{requester_line}\n"
                     f"🆔 Run <code>#{esc(run.get('run_number', '?'))}</code>"
                 ),
                 rows,
             )
-            track_build(chat_id, message_id, run, root, requester)
+            track_build(chat_id, message_id, run, root, requester, username)
             return
 
         if data == "status":
