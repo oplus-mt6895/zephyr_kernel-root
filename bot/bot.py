@@ -741,7 +741,7 @@ def handle_message(message):
     if command in {"/start", "/kernel"}:
         send_fresh(chat_id, menu_text(), menu_keyboard(user_id))
     elif command == "/id":
-        refresh_screen(
+        send_fresh(
             chat_id,
             "<b>🆔 TELEGRAM USER ID</b>\n\n"
             f"User <code>{esc(user_id)}</code>",
@@ -803,7 +803,7 @@ def handle_message(message):
                     )
                     track_build(chat_id, msg["message_id"], run, root)
             else:
-                refresh_screen(
+                send_fresh(
                     chat_id,
                     "🟢 <b>No build is currently running.</b>",
                     menu_keyboard(user_id),
