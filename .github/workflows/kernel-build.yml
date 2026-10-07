@@ -1,6 +1,6 @@
 name: Zephyr Kernel Build
 
-run-name: Zephyr Kernel · ${{ inputs.root || github.event.client_payload.root || 'ksu-next' }} · AK3 ${{ inputs.build_ak3 != false || github.event_name == 'repository_dispatch' }}
+run-name: Zephyr Kernel · ${{ inputs.root }} · AK3 ${{ inputs.build_ak3 }}
 
 on:
   workflow_dispatch:
@@ -21,9 +21,6 @@ on:
         required: true
         default: true
         type: boolean
-  repository_dispatch:
-    types: [build-kernel]
-
 permissions:
   contents: write
   actions: write
@@ -151,7 +148,7 @@ jobs:
           ls -lh out/kernel-5.10/arch/arm64/boot/Image.gz
 
       - name: Package AnyKernel3
-        if: ${{ inputs.build_ak3 != false || github.event_name == 'repository_dispatch' }}
+        if: ${{ inputs.build_ak3 != false }}
         run: |
           chmod +x scripts/package_ak3.sh
           scripts/package_ak3.sh workspace/kernel-5.10 workspace/out "${{ env.ROOT_IMPL }}"
