@@ -231,15 +231,15 @@ jobs:
           EOF
 
       - name: Update root-manager build cache
-        if: \${{ success() }}
+        if: ${{ success() }}
         env:
-          ROOT_IMPL: \${{ inputs.root }}
-          MANAGER_REF: \${{ inputs.manager_ref }}
-          MANAGER_KEY: \${{ inputs.manager_key }}
-          REQUESTER_ID: \${{ inputs.requester_id }}
-          REQUESTER_NAME: \${{ inputs.requester_name }}
-          RUN_ID: \${{ github.run_id }}
-          RUN_NUMBER: \${{ github.run_number }}
+          ROOT_IMPL: ${{ inputs.root }}
+          MANAGER_REF: ${{ inputs.manager_ref }}
+          MANAGER_KEY: ${{ inputs.manager_key }}
+          REQUESTER_ID: ${{ inputs.requester_id }}
+          REQUESTER_NAME: ${{ inputs.requester_name }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
           python3 - <<'PY'
           import json, os
