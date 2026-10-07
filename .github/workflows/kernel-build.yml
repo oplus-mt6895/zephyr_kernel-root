@@ -1,6 +1,6 @@
 name: Zephyr Kernel Build
 
-run-name: Zephyr Kernel · ${{ inputs.root }} · AK3 ${{ inputs.build_ak3 }}
+run-name: Zephyr Kernel · ${{ inputs.root }} · ${{ inputs.manager_ref }} · AK3 ${{ inputs.build_ak3 }}
 
 on:
   workflow_dispatch:
@@ -21,6 +21,26 @@ on:
         required: true
         default: true
         type: boolean
+      manager_ref:
+        description: Root manager release/tag
+        required: true
+        default: main
+        type: string
+      manager_key:
+        description: Root manager deduplication key
+        required: true
+        default: none
+        type: string
+      requester_id:
+        description: Telegram requester ID
+        required: false
+        default: ""
+        type: string
+      requester_name:
+        description: Telegram requester name
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: write
@@ -127,7 +147,7 @@ jobs:
       - name: Integrate root implementation
         run: |
           chmod +x scripts/integrate_root.sh
-          scripts/integrate_root.sh workspace/kernel-5.10 "${{ inputs.root }}"
+          scripts/integrate_root.sh workspace/kernel-5.10 "${{ inputs.root }}" "${{ inputs.manager_ref }}"
 
       - name: Build Image.gz
         working-directory: workspace
