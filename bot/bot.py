@@ -744,7 +744,7 @@ def handle_message(message):
         send_fresh(
             chat_id,
             "<b>🆔 TELEGRAM USER ID</b>\n\n"
-            f"User <code>{esc(user_id)}</code>",
+            f"User <code>{esc(user_id)}</code>\n\n🟢 <b>IM ALIVE</b> · Bob is on duty.",
             menu_keyboard(user_id),
         )
     elif command == "/release":
@@ -752,7 +752,7 @@ def handle_message(message):
         for run in successful_build_runs():
             if not release_for_run(run.get("run_number")):
                 runs.append(run)
-        target_id = LAST_BOT_MESSAGES.get(chat_id)
+        target_id = None
         if runs:
             text = "<b>📦 PUBLISH A BUILD</b>\n\nChoose a successful build to publish:"
             kb = release_list_keyboard(runs)
@@ -775,11 +775,11 @@ def handle_message(message):
         if run and run.get("status") in {"queued", "in_progress", "waiting", "requested", "pending"}:
             text = progress_message(run, tracked["root"], tracked["frame"])
             tracked["frame"] += 1
-            refresh_tracked_screen(chat_id, tracked, text, progress_keyboard(run))
+            send_fresh(chat_id, text + "\n\n🟢 <b>IM ALIVE</b> · Bob is on duty.", progress_keyboard(run))
             tracked["last_text"] = text
         else:
             run = active_run()
-            target_id = tracked["message_id"] if tracked else LAST_BOT_MESSAGES.get(chat_id)
+            target_id = None
             if run:
                 root = run_config(run)
                 if target_id:
