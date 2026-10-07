@@ -302,7 +302,7 @@ jobs:
           }
           with open(path, "w", encoding="utf-8") as f:
               json.dump(data, f, indent=2, sort_keys=True)
-              f.write("\\n")
+              f.write("\n")
           PY
               git add bot/build_cache.json
               git commit -m "ci: update root manager build cache [skip ci]"
