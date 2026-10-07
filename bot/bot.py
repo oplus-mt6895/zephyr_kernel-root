@@ -786,7 +786,7 @@ def handle_message(message):
                     text = progress_message(run, root, 0)
                     if tracked:
                         tracked["root"] = root
-                        refresh_tracked_screen(chat_id, tracked, text, progress_keyboard(run))
+                        send_fresh(chat_id, text + "\n\n🟢 <b>IM ALIVE</b> · Bob is on duty.", progress_keyboard(run))
                         target_id = tracked["message_id"]
                     else:
                         try:
