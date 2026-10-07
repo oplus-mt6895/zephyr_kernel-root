@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 TG_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 GH_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 REPO = os.environ.get("GITHUB_REPOSITORY", "oplus-mt6895/zephyr_kernel-root")
-BUILD_WORKFLOW = "build.yml"
+BUILD_WORKFLOW = "kernel-build.yml"
 BOT_WORKFLOW = "telegram-bot.yml"
 RELEASE_WORKFLOW = "publish-release.yml"
 BRANCH = os.environ.get("GITHUB_REF_NAME") or os.environ.get("GITHUB_REF", "main").removeprefix("refs/heads/")
