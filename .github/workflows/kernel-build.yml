@@ -177,6 +177,10 @@ jobs:
         working-directory: workspace
         env:
           ROOT_IMPL: ${{ inputs.root }}
+          MANAGER_REF: ${{ inputs.manager_ref }}
+          MANAGER_KEY: ${{ inputs.manager_key }}
+          REQUESTER_ID: ${{ inputs.requester_id }}
+          REQUESTER_NAME: ${{ inputs.requester_name }}
         run: |
           mkdir -p ../release
           IMAGE="out/kernel-5.10/arch/arm64/boot/Image.gz"
@@ -213,8 +217,10 @@ jobs:
 
           **Root:** ${ROOT_IMPL} · **AK3:** Enabled
 
-          **Root version:** ${KSU_REF}
+          **Root release/tag:** ${KSU_REF}
           **Root commit:** ${KSU_COMMIT}
+          **Manager key:** ${MANAGER_KEY}
+          **Requested by:** ${REQUESTER_NAME} (${REQUESTER_ID})
 
           **Manager:**
           - KernelSU → https://github.com/tiann/KernelSU/releases/tag/v3.0.0
@@ -223,6 +229,46 @@ jobs:
           - BakaSU → https://github.com/Baka-SU/BakaSU/actions/workflows/build-manager.yml
 
           EOF
+
+      - name: Update root-manager build cache
+        if: \${{ success() }}
+        env:
+          ROOT_IMPL: \${{ inputs.root }}
+          MANAGER_REF: \${{ inputs.manager_ref }}
+          MANAGER_KEY: \${{ inputs.manager_key }}
+          REQUESTER_ID: \${{ inputs.requester_id }}
+          REQUESTER_NAME: \${{ inputs.requester_name }}
+          RUN_ID: \${{ github.run_id }}
+          RUN_NUMBER: \${{ github.run_number }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          path = "bot/build_cache.json"
+          try:
+              with open(path, "r", encoding="utf-8") as f:
+                  data = json.load(f)
+          except (FileNotFoundError, json.JSONDecodeError):
+              data = {}
+          data[os.environ["ROOT_IMPL"]] = {
+              "manager_key": os.environ["MANAGER_KEY"],
+              "manager_ref": os.environ["MANAGER_REF"],
+              "run_id": int(os.environ["RUN_ID"]),
+              "run_number": int(os.environ["RUN_NUMBER"]),
+              "requester_id": os.environ["REQUESTER_ID"],
+              "requester_name": os.environ["REQUESTER_NAME"],
+              "release_url": ""
+          }
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(data, f, indent=2, sort_keys=True)
+              f.write("\n")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bot/build_cache.json
+          if ! git diff --cached --quiet; then
+            git commit -m "ci: update root manager build cache [skip ci]"
+            git push
+          fi
 
       - name: Upload kernel artifacts
         uses: actions/upload-artifact@v4
