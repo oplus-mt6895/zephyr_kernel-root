@@ -30,6 +30,7 @@ GH_PROGRESS_INTERVAL = 1
 TRACKED_RUNS = {}
 STOP_REQUESTED = False
 LAST_BOT_MESSAGES = {}
+BOT_USERNAME = None
 SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
 
 TG_API = f"https://api.telegram.org/bot{TG_TOKEN}"
@@ -152,6 +153,32 @@ def refresh_screen(chat_id, text, keyboard=None):
             print(f"refresh edit failed for chat {chat_id}: {exc}", file=sys.stderr)
             LAST_BOT_MESSAGES.pop(chat_id, None)
     return send_fresh(chat_id, text, keyboard)
+def bot_username():
+    global BOT_USERNAME
+    if BOT_USERNAME:
+        return BOT_USERNAME
+    try:
+        me = tg("getMe")
+        BOT_USERNAME = (me.get("username") or "").lower()
+    except Exception as exc:
+        print("getMe failed: " + str(exc), file=sys.stderr)
+    return BOT_USERNAME
+
+
+def is_bot_mentioned(message):
+    username = bot_username()
+    if not username:
+        return False
+    text = message.get("text") or ""
+    for entity in message.get("entities") or []:
+        if entity.get("type") == "mention":
+            offset = entity.get("offset", 0)
+            length = entity.get("length", 0)
+            if text[offset:offset + length].lstrip("@").lower() == username:
+                return True
+    return ("@" + username) in text.lower()
+
+
 def answer_callback(query_id, text="", show_alert=False):
     try:
         tg("answerCallbackQuery", {
@@ -353,7 +380,8 @@ def menu_text():
         "<b>⚡ ZEPHYR KERNEL BUILDER</b>\n\n"
         "📱 <b>Realme GT Neo 3</b> · zephyr / MT6895\n"
         "🧩 <b>Linux 5.10</b>\n\n"
-        "Choose an action:"
+        "Choose an action:\n\n"
+        "🟢 <b>IM ALIVE</b> · Bob is on duty."
     )
 
 
@@ -703,12 +731,15 @@ def handle_message(message):
     chat_id = chat.get("id")
     user_id = user.get("id")
     text = (message.get("text") or "").strip()
+    if is_bot_mentioned(message):
+        send_fresh(chat_id, "<b>🔨 BOB THE BUILDER MODE</b>\n\n🎵 Can we build it? <b>YES WE CAN!</b>\n⚙️ Can we stop duplicate builds? <b>YES WE CAN!</b>\n🧱 Can we survive another kernel compile? <b>...probably.</b> 😂\n\n<i>Bob says: \"I build kernels, not excuses.\"</i>\n\n🟢 <b>IM ALIVE</b> · Bob is on duty.", menu_keyboard(user_id))
+        return
     if not text.startswith("/"):
         return
 
     command = text.split()[0].split("@")[0].lower()
     if command in {"/start", "/kernel"}:
-        refresh_screen(chat_id, menu_text(), menu_keyboard(user_id))
+        send_fresh(chat_id, menu_text(), menu_keyboard(user_id))
     elif command == "/id":
         refresh_screen(
             chat_id,
@@ -1034,6 +1065,7 @@ def process_updates(updates):
 
 def main():
     print("Zephyr GitHub Telegram worker started", flush=True)
+    bot_username()
 
     try:
         tg("deleteWebhook", {"drop_pending_updates": False})
