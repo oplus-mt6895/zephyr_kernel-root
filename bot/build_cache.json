@@ -19,5 +19,13 @@
     "run_number": 13
   },
   "none": {},
-  "sukisu-ultra": {}
+  "sukisu-ultra": {
+    "manager_key": "sukisu-ultra:v4.2.0",
+    "manager_ref": "v4.2.0",
+    "release_url": "",
+    "requester_id": "2032415361",
+    "requester_name": "DARSH",
+    "run_id": 37766614581,
+    "run_number": 17
+  }
 }
