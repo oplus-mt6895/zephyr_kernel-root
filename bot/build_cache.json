@@ -8,7 +8,15 @@
     "run_id": 37610232720,
     "run_number": 16
   },
-  "kernel-su": {},
+  "kernel-su": {
+    "manager_key": "kernel-su:v3.3.0",
+    "manager_ref": "v3.3.0",
+    "release_url": "",
+    "requester_id": "5812604367",
+    "requester_name": "Babio Soliter",
+    "run_id": 38045978493,
+    "run_number": 18
+  },
   "ksu-next": {
     "manager_key": "ksu-next:v3.4.0",
     "manager_ref": "v3.4.0",
